@@ -560,6 +560,75 @@ result = client.translate("document.pdf")
 result.save(fmt="markdown")
 ```
 
+## Production Deployment (Docker + Nginx)
+
+Deploy DocuTranslate as a public HTTPS service using Docker Compose and Nginx.
+
+### Prerequisites
+
+- VPS or server with **Docker** and **Docker Compose v2+**
+- (Optional) A domain name pointing to the server for Let's Encrypt SSL
+
+### Quick Deploy
+
+```bash
+git clone https://github.com/xunbu/docutranslate.git
+cd docutranslate
+
+# 1. Copy and edit the environment file
+cp .env.example .env
+# Edit .env: set DOCUTRANSLATE_DEFAULT_BASE_URL, DOCUTRANSLATE_DEFAULT_API_KEY,
+# DOCUTRANSLATE_DEFAULT_MODEL_ID, and adjust ports if needed.
+
+# 2. Start the stack (app + nginx)
+docker compose up -d --build
+
+# 3. (Optional) Set up SSL:
+#    Self-signed (for testing / IP-only access):
+bash scripts/setup_ssl.sh --self-signed --domain YOUR_SERVER_IP
+
+#    Let's Encrypt (requires a domain):
+bash scripts/setup_ssl.sh --domain your.domain.com --email admin@your.domain.com
+```
+
+### Access the Service
+
+| Endpoint | URL |
+|----------|-----|
+| Web UI | `https://YOUR_HOST:HTTPS_PORT/` |
+| API Docs (Swagger) | `https://YOUR_HOST:HTTPS_PORT/docs` |
+| Health Check | `https://YOUR_HOST:HTTPS_PORT/health` |
+
+Default ports: HTTP `18080`, HTTPS `18443`. Change via `DOCUTRANSLATE_HTTP_PORT` and `DOCUTRANSLATE_HTTPS_PORT` in `.env`.
+
+### Configuration Reference
+
+Key environment variables for production:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DOCUTRANSLATE_HTTP_PORT` | `18080` | Nginx HTTP listener port |
+| `DOCUTRANSLATE_HTTPS_PORT` | `18443` | Nginx HTTPS listener port |
+| `DOCUTRANSLATE_SSL_CN` | `localhost` | SSL certificate Common Name |
+| `DOCUTRANSLATE_GUNICORN_WORKERS` | `1` | Number of Gunicorn worker processes |
+| `DOCUTRANSLATE_GUNICORN_TIMEOUT` | `300` | Gunicorn request timeout (seconds) |
+
+All `DOCUTRANSLATE_DEFAULT_*` variables from `.env.example` apply to the container as well.
+
+### Run BDD Verification
+
+```bash
+# Install Node.js dependencies
+npm install
+npx playwright install chromium
+
+# Run against local stack (default)
+bash scripts/e2e_verify.sh
+
+# Run against a deployed instance
+E2E_BASE_URL=https://your.domain.com bash scripts/e2e_verify.sh
+```
+
 ## FAQ
 
 **Q: Output is in original language?**
