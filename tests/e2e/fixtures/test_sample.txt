@@ -1,0 +1,2 @@
+DocuTranslate end-to-end sample.
+This content should remain unchanged in skip-translate mode.
