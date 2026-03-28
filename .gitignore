@@ -31,3 +31,11 @@ tests/e2e/fixtures/generated/
 nginx/ssl/
 nginx/letsencrypt/
 nginx/www/
+
+# Deploy artifacts
+logs/
+generated/
+.codex-review/
+tests/e2e/screenshots
+tests/e2e/.features-gen/
+
