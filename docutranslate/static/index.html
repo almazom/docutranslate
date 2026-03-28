@@ -224,7 +224,7 @@
                 <div class="settings-panel">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="d-flex align-items-center">
-                            <h4 class="mb-0 me-3 fw-bold" :title="t('pageTitle')">DocuTranslate</h4>
+                            <h4 class="mb-0 me-3 fw-bold" :title="t('pageTitle')" data-testid="project-title">DocuTranslate</h4>
                             <div class="btn-group">
                                 <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
                                         data-bs-target="#tutorialModal">
@@ -254,6 +254,7 @@
                                 <div id="collapseZero" class="accordion-collapse collapse show">
                                     <div class="accordion-body">
                                         <select class="form-select" v-model="form.workflow_type"
+                                                data-testid="workflow-select"
                                                 @change="saveSetting('translator_last_workflow', form.workflow_type)">
                                             <option value="markdown_based">{{ t('workflowOptionMarkdown') }}</option>
                                             <option value="docx">{{ t('workflowOptionDocx') }}</option>
@@ -544,6 +545,7 @@
                             <div class="accordion-item">
                                 <h2 class="accordion-header">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-testid="ai-settings-toggle"
                                             data-bs-target="#collapseTwo">
                                         <strong><span class="step-number">{{ stepMap.ai }} </span><i
                                                 class="bi bi-robot me-2"></i><span>{{ t('aiSettingsTitleText') }}</span></strong>
@@ -553,6 +555,7 @@
                                     <div class="accordion-body">
                                         <div class="form-check form-switch mb-3">
                                             <input class="form-check-input" type="checkbox" role="switch"
+                                                   data-testid="skip-translate-switch"
                                                    v-model="form.skip_translate"
                                                    @change="saveSetting('translator_skip_translate', form.skip_translate)">
                                             <label class="form-check-label">{{ t('skipTranslationLabel') }}</label>
@@ -606,7 +609,7 @@
                                     <div class="accordion-body">
                                         <div class="mb-3">
                                             <label class="form-label">{{ t('targetLanguageLabel') }}</label>
-                                            <select class="form-select" v-model="form.to_lang"
+                                            <select class="form-select" v-model="form.to_lang" data-testid="target-language-select"
                                                     @change="saveSetting('translator_to_lang', form.to_lang)">
                                                 <option value="Simplified Chinese">中文(简体中文)</option>
                                                 <option value="English">英文(English)</option>
@@ -931,7 +934,7 @@
                         <div class="d-flex gap-2">
                             <button class="btn btn-outline-danger" @click="clearAllTasks()" v-if="tasks.length > 0"><i
                                     class="bi bi-trash me-2"></i><span>{{ t('clearAllTasksBtn') }}</span></button>
-                            <button class="btn btn-primary" @click="createNewTask()"><i
+                            <button class="btn btn-primary" @click="createNewTask()" data-testid="new-task-button"><i
                                     class="bi bi-plus-circle-fill me-2"></i><span>{{ t('newTaskBtn') }}</span></button>
                         </div>
                     </div>
@@ -940,7 +943,8 @@
                             <img src="/static/favicon.ico" alt="LOGO" style="width:10%;min-width: 55px; height: auto;">
                             <p class="mt-3">{{ t('noTaskPlaceholder') }}</p>
                         </div>
-                        <div v-for="task in tasks" :key="task.uiId" class="card mb-3 task-card">
+                        <div v-for="task in tasks" :key="task.uiId" class="card mb-3 task-card"
+                             :data-testid="'task-card-' + task.uiId">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <span class="fw-bold"><span>{{ t('taskCardIdLabel')
                                     }}</span>: <code>{{ task.backendId || t('taskCardIdPlaceholder') }}</code></span>
@@ -950,6 +954,7 @@
                                 <div class="row">
                                     <div class="col-md-5">
                                         <input type="file" class="d-none" :id="'fileInput-' + task.uiId"
+                                               :data-testid="'task-file-input-' + task.uiId"
                                                @change="handleTaskFileSelect($event, task)">
                                         <div class="file-drop-area"
                                              :class="{'drag-over': task.isDragOver, 'file-selected': !!task.file, 'input-error': task.validationError}"
@@ -970,6 +975,7 @@
                                         </div>
                                         <div class="mt-2" v-if="task.file || task.fileName">
                                             <span class="fw-bold">{{ t('taskCardFilenameLabel') }} </span><span
+                                                :data-testid="'task-filename-' + task.uiId"
                                                 class="text-success">{{ task.fileName || task.file.name }}</span>
                                         </div>
                                     </div>
@@ -986,6 +992,7 @@
                                         </div>
                                         <div class="mt-2 d-flex align-items-center">
                                             <span class="small"
+                                                  :data-testid="'task-status-' + task.uiId"
                                                   :class="task.statusClass">{{ task.statusMessage || t('taskCardStatusWaiting')
                                                 }}</span>
                                             <div v-if="task.isProcessing" class="spinner-border spinner-border-sm ms-2"
@@ -1006,17 +1013,20 @@
                             <div class="card-footer d-flex justify-content-between align-items-center">
                                 <div class="download-buttons" v-if="task.downloads">
                                     <button class="btn btn-sm btn-success me-1" v-if="task.downloads.html"
+                                            :data-testid="'task-preview-button-' + task.uiId"
                                             @click="openPreview(task)"><i
                                             class="bi bi-eye-fill me-1"></i><span>{{ t('taskCardPreviewBtn') }}</span>
                                     </button>
                                     <div class="btn-group me-1">
                                         <button type="button" class="btn btn-sm btn-secondary dropdown-toggle"
+                                                :data-testid="'task-download-toggle-' + task.uiId"
                                                 data-bs-toggle="dropdown"><i
                                                 class="bi bi-download me-1"></i><span>{{ t('taskCardDownloadBtn')
                                             }}</span></button>
                                         <ul class="dropdown-menu">
                                             <li v-for="(link, key) in task.downloads" :key="key">
-                                                <a class="dropdown-item" :href="link"><i class="bi me-2"
+                                                <a class="dropdown-item" :href="link"
+                                                   :data-testid="'task-download-link-' + key"><i class="bi me-2"
                                                                                          :class="getFileIcon(key)"></i>{{ key === 'markdown_zip' ? t('downloadMdZip') : (key === 'markdown' ? t('downloadMdEmbedded') : key.toUpperCase())
                                                     }}</a>
                                             </li>
@@ -1041,6 +1051,7 @@
                                     </div>
                                 </div>
                                 <button class="btn ms-auto" :class="task.isTranslating ? 'btn-danger' : 'btn-primary'"
+                                        :data-testid="'task-action-button-' + task.uiId"
                                         @click="toggleTaskState(task)" :disabled="task.initializing">
                                     <span v-if="task.initializing"><span
                                             class="spinner-border spinner-border-sm"></span> {{ t('btn_initializing') }}</span>
@@ -1196,7 +1207,7 @@
                 <div id="translatedPreviewContainer" class="preview-pane-wrapper">
                     <h6 class="text-center text-muted small">{{ t('previewTranslated') }}</h6>
                     <div class="preview-pane">
-                        <iframe ref="translatedFrame" src="about:blank"></iframe>
+                        <iframe ref="translatedFrame" src="about:blank" data-testid="translated-preview-frame"></iframe>
                     </div>
                 </div>
             </div>
@@ -1313,7 +1324,7 @@
           <div>
             <div class="mb-2">
               <label class="form-label">{{ t('platformLabel') }}</label>
-              <select class="form-select" :value="platform" @change="handlePlatformChange($event.target.value)">
+              <select class="form-select" :value="platform" :data-testid="prefix + '-platform-select'" @change="handlePlatformChange($event.target.value)">
                 <option v-for="p in platforms" :value="p.val">{{ p.val === 'custom' ? t(p.label) : p.label }}</option>
               </select>
             </div>
@@ -1329,6 +1340,7 @@
             <div class="mb-3" v-if="platform === 'custom'">
               <label class="form-label">{{ t('baseUrlLabel') }}</label>
               <input type="url" class="form-control" :class="{'is-invalid': invalidBaseUrl}"
+                     :data-testid="prefix + '-base-url-input'"
                      :value="baseUrl" @input="handleBaseUrlChange($event.target.value)" required
                      placeholder="OpenAi Compatible URL">
             </div>
@@ -1338,6 +1350,7 @@
                   class="ms-2 text-muted small">{{ apiHref && apiHref[1] ? t(apiHref[1]) : '' }}</span></label>
               <div class="input-group">
                 <input :type="showPass?'text':'password'" class="form-control" :class="{'is-invalid': invalidApiKey}"
+                       :data-testid="prefix + '-api-key-input'"
                        :value="apiKey" @input="handleApiKeyChange($event.target.value)"
                        :placeholder="t('apiKeyPlaceholder')">
                 <button class="btn btn-outline-secondary" type="button" @click="showPass=!showPass"><i class="bi"
@@ -1348,6 +1361,7 @@
             <div class="mb-3">
               <label class="form-label">{{ t('modelIdLabel') }}</label>
               <input type="text" class="form-control" :class="{'is-invalid': invalidModelId}"
+                     :data-testid="prefix + '-model-id-input'"
                      :value="modelId" @input="handleModelChange($event.target.value)" required
                      :placeholder="t('modelIdPlaceholder')">
             </div>
