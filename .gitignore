@@ -5,7 +5,6 @@ build/
 dist/
 wheels/
 *.egg-info
-tests/
 tests/resource/
 tests/test_data/
 htmlcov/
@@ -21,3 +20,14 @@ docutranslate/output/
 .idea/
 #claude
 .claude/
+.env
+data/
+node_modules/
+playwright-report/
+test-results/
+screenshots/
+tests/e2e/.features-gen/
+tests/e2e/fixtures/generated/
+nginx/ssl/
+nginx/letsencrypt/
+nginx/www/

@@ -47,6 +47,7 @@ from pydantic import (
 )
 
 from docutranslate import __version__
+from docutranslate.config import get_settings
 from docutranslate.core.schemas import TranslatePayload
 from docutranslate.exporter.md.types import ConvertEngineType
 from docutranslate.global_values.conditional_import import DOCLING_EXIST
@@ -70,6 +71,19 @@ except ImportError:
 
 # --- Shared Translation Service ---
 translation_service: TranslationService = get_translation_service()
+settings = get_settings()
+default_params.update(
+    {
+        "thinking": settings.default_thinking,
+        "chunk_size": settings.default_chunk_size,
+        "concurrent": settings.default_concurrent,
+        "temperature": settings.default_temperature,
+        "top_p": settings.default_top_p,
+        "timeout": settings.default_timeout,
+        "retry": settings.default_retry,
+        "system_proxy_enable": settings.default_system_proxy_enable,
+    }
+)
 
 # --- FastAPI application and router setup ---
 tags_metadata = [
@@ -802,6 +816,11 @@ async def service_get_app_version():
     return JSONResponse(content={"version": __version__})
 
 
+@app.get("/health", tags=["Application"])
+async def healthcheck():
+    return JSONResponse(content={"status": "ok", "version": __version__})
+
+
 @service_router.post(
     "/flat-translate",
     summary="translate(sync)",
@@ -818,11 +837,11 @@ async def service_get_app_version():
 async def service_flat_translate(
         request: Request,
         file: UploadFile = File(..., description="要翻译的文件"),
-        model_id: str = Form("", description="模型ID (例如: gpt-4o, glm-4-air)，当 skip_translate=False 时必填"),
-        base_url: Optional[str] = Form("",
+        model_id: str = Form(settings.default_model_id, description="模型ID (例如: gpt-4o, glm-4-air)，当 skip_translate=False 时必填"),
+        base_url: Optional[str] = Form(settings.default_base_url,
                                        description="LLM API 基础 URL (如不填则依赖环境变量或默认值，当 skip_translate=False 时必填)"),
-        api_key: str = Form("xx", description="API Key (默认xx)"),
-        to_lang: str = Form("中文", description="目标翻译语言"),
+        api_key: str = Form(settings.default_api_key, description="API Key"),
+        to_lang: str = Form(settings.default_to_lang, description="目标翻译语言"),
         workflow_type: str = Form("auto",
                                   description="工作流类型: auto, markdown_based, txt, json, xlsx, docx, srt, epub, html, ass, pptx"),
         skip_translate: bool = Form(False, description="是否跳过翻译仅进行格式解析"),
@@ -832,7 +851,7 @@ async def service_flat_translate(
         top_p: float = Form(default_params["top_p"], description="核采样 (0-1)"),
         timeout: int = Form(default_params["timeout"], description="单次请求超时时间(秒)"),
         retry: int = Form(default_params["retry"], description="失败重试次数"),
-        thinking: str = Form("default", description="思考模式: default, enable, disable"),
+        thinking: str = Form(settings.default_thinking, description="思考模式: default, enable, disable"),
         custom_prompt: Optional[str] = Form("", description="自定义系统提示词"),
         system_proxy_enable: bool = Form(default_params["system_proxy_enable"], description="是否启用系统代理"),
         force_json: bool = Form(False, description="强制 LLM 输出 JSON 格式"),
@@ -843,20 +862,20 @@ async def service_flat_translate(
         separator: str = Form("\n", description="追加/前置时的分隔符"),
         segment_mode: str = Form("line", description="[Txt专用] 分段模式: line(按行), paragraph(按段), none(全文)"),
         translate_regions: Optional[List[str]] = Form(None, description="[Xlsx专用] 翻译区域列表, 如 'Sheet1!A1:B10'"),
-        convert_engine: Optional[ConvertEngineType] = Form("mineru",
+        convert_engine: Optional[ConvertEngineType] = Form(settings.default_convert_engine,
                                                            description="[PDF/MD] 解析引擎: mineru, docling, identity,mineru_deploy"),
-        mineru_token: Optional[str] = Form("", description="[MinerU Cloud] API Token"),
-        model_version: str = Form("vlm", description="[MinerU Cloud] 模型版本: vlm, pipeline"),
+        mineru_token: Optional[str] = Form(settings.default_mineru_token, description="[MinerU Cloud] API Token"),
+        model_version: str = Form(settings.default_model_version, description="[MinerU Cloud] 模型版本: vlm, pipeline"),
         formula_ocr: bool = Form(True, description="[PDF] 是否启用公式识别"),
         code_ocr: bool = Form(True, description="[Docling] 是否启用代码块识别"),
-        mineru_deploy_base_url: str = Form("http://127.0.0.1:8000", description="[MinerU Local] 服务地址"),
-        mineru_deploy_backend: str = Form("hybrid-auto-engine",
+        mineru_deploy_base_url: str = Form(settings.default_mineru_deploy_base_url, description="[MinerU Local] 服务地址"),
+        mineru_deploy_backend: str = Form(settings.default_mineru_deploy_backend,
                                           description="[MinerU Local] 后端类型: pipeline, vlm-auto-engine, vlm-http-client, hybrid-auto-engine, hybrid-http-client"),
-        mineru_deploy_parse_method: str = Form("auto", description="[MinerU Local] 解析方法: auto, txt, ocr"),
-        mineru_deploy_formula_enable: bool = Form(True, description="[MinerU Local] 是否启用公式"),
-        mineru_deploy_table_enable: bool = Form(True, description="[MinerU Local] 是否启用表格"),
-        mineru_deploy_start_page_id: int = Form(0, description="[MinerU Local] 起始页码"),
-        mineru_deploy_end_page_id: int = Form(99999, description="[MinerU Local] 结束页码"),
+        mineru_deploy_parse_method: str = Form(settings.default_mineru_deploy_parse_method, description="[MinerU Local] 解析方法: auto, txt, ocr"),
+        mineru_deploy_formula_enable: bool = Form(settings.default_mineru_deploy_formula_enable, description="[MinerU Local] 是否启用公式"),
+        mineru_deploy_table_enable: bool = Form(settings.default_mineru_deploy_table_enable, description="[MinerU Local] 是否启用表格"),
+        mineru_deploy_start_page_id: int = Form(settings.default_mineru_deploy_start_page_id, description="[MinerU Local] 起始页码"),
+        mineru_deploy_end_page_id: int = Form(settings.default_mineru_deploy_end_page_id, description="[MinerU Local] 结束页码"),
         mineru_deploy_lang_list: Optional[List[str]] = Form(None, description="[MinerU Local] 语言列表"),
         mineru_deploy_server_url: Optional[str] = Form("",
                                                        description="[MinerU Local] Server URL (backend='vlm-http-client'时使用)"),
@@ -1096,7 +1115,13 @@ def find_free_port(start_port):
 def run_app(host=None, port: int | None = None, enable_CORS=False,
             allow_origin_regex=r"^(https?://.*|null|file://.*)$",
             with_mcp: bool = False):
-    initial_port = port or int(os.environ.get("DOCUTRANSLATE_PORT", 8010))
+    host_to_use = host or settings.host
+    initial_port = port or settings.port
+    if not enable_CORS and settings.cors_enabled:
+        enable_CORS = True
+        allow_origin_regex = settings.cors_origin_regex
+    if not with_mcp and settings.with_mcp:
+        with_mcp = True
     try:
         port_to_use = find_free_port(initial_port)
         if port_to_use != initial_port:
@@ -1116,8 +1141,8 @@ def run_app(host=None, port: int | None = None, enable_CORS=False,
 
         if with_mcp:
             # Use the same host and port as the web backend
-            # If host is None, use 0.0.0.0 to ensure CORS works correctly
-            mcp_host = host if host is not None else "0.0.0.0"
+            # If host is local only, expose MCP on all interfaces for the reverse proxy.
+            mcp_host = host_to_use if host_to_use not in {None, "127.0.0.1"} else "0.0.0.0"
             setup_mcp_integration(
                 enable=True,
                 host=mcp_host,
@@ -1126,7 +1151,7 @@ def run_app(host=None, port: int | None = None, enable_CORS=False,
                 allow_origin_regex=allow_origin_regex,
             )
 
-        uvicorn.run(app, host=host, port=port_to_use, workers=1)
+        uvicorn.run(app, host=host_to_use, port=port_to_use, workers=1)
     except Exception as e:
         print(f"启动失败: {e}")
 
