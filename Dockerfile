@@ -38,8 +38,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --system --gid docutranslate --home-dir /app --create-home docutranslate
 
 COPY --from=builder /opt/venv /opt/venv
+COPY gunicorn.conf.py /app/gunicorn.conf.py
+COPY scripts/start_production.sh /app/scripts/start_production.sh
 
 RUN mkdir -p /app/output /app/data/tasks \
+    && chmod +x /app/scripts/start_production.sh \
     && chown -R docutranslate:docutranslate /app
 
 VOLUME ["/app/output", "/app/data/tasks"]
@@ -48,4 +51,4 @@ USER docutranslate
 
 EXPOSE 8010
 
-CMD ["docutranslate", "-i", "--host", "0.0.0.0", "-p", "8010"]
+CMD ["./scripts/start_production.sh"]
