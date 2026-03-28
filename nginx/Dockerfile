@@ -5,6 +5,7 @@ RUN apk add --no-cache openssl \
 
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/conf.d /etc/nginx/conf.d
+COPY nginx/auth /etc/nginx/auth
 COPY nginx/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh

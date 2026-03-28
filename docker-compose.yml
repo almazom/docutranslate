@@ -37,6 +37,7 @@ services:
       - "${DOCUTRANSLATE_HTTPS_PORT:-443}:443"
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/auth:/etc/nginx/auth
       - ./nginx/www/certbot:/var/www/certbot
       - ./nginx/letsencrypt:/etc/letsencrypt
 
