@@ -1516,10 +1516,10 @@
                 formula_ocr: true,
                 code_ocr: true,
                 skip_translate: false,
-                platform: 'https://api.302.ai/v1',
+                platform: 'https://api.deepseek.com/v1',
                 base_url: '',
                 api_key: '',
-                model_id: '',
+                model_id: 'deepseek-chat',
                 provider: 'api.openai.com', // Default provider
                 system_proxy_enable: false,
                 force_json: false,
@@ -1538,7 +1538,7 @@
                 glossary_generate_enable: false,
                 glossary_agent_custom_prompt: '',
                 glossary_agent_config_choice: 'same',
-                glossary_agent_platform: 'https://api.302.ai/v1',
+                glossary_agent_platform: 'https://api.deepseek.com/v1',
                 glossary_agent_baseurl: '',
                 glossary_agent_key: '',
                 glossary_agent_model_id: '',
@@ -1609,10 +1609,10 @@
                 form.formula_ocr = getBool('translator_formula_ocr', true);
                 form.code_ocr = getBool('translator_code_ocr', true);
                 form.skip_translate = getBool('translator_skip_translate', false);
-                form.platform = get('translator_platform_last_platform', 'https://api.302.ai/v1');
+                form.platform = get('translator_platform_last_platform', 'https://api.deepseek.com/v1');
                 form.system_proxy_enable = getBool('translator_system_proxy_enable', defaults.system_proxy_enable ?? false);
                 form.force_json = getBool('translator_force_json', false);
-                form.to_lang = get('translator_to_lang', 'Simplified Chinese');
+                form.to_lang = get('translator_to_lang', 'Russian');
                 form.custom_to_lang = get('translator_custom_to_lang', '');
                 form.thinking = get('translator_thinking_mode', defaults.thinking ?? 'disable');
                 form.custom_prompt = get('custom_prompt', '');
@@ -1637,8 +1637,8 @@
                 form.glossary_generate_enable = getBool('glossary_generate_enable', false);
                 form.glossary_agent_custom_prompt = get('glossary_agent_custom_prompt', '');
                 form.glossary_agent_config_choice = get('glossary_agent_config_choice', 'same');
-                form.glossary_agent_platform = get('glossary_agent_platform_last_platform', 'https://api.302.ai/v1');
-                form.glossary_agent_to_lang = get('glossary_agent_to_lang', 'Simplified Chinese');
+                form.glossary_agent_platform = get('glossary_agent_platform_last_platform', 'https://api.deepseek.com/v1');
+                form.glossary_agent_to_lang = get('glossary_agent_to_lang', 'Russian');
                 form.glossary_agent_custom_to_lang = get('glossary_agent_custom_to_lang', '');
                 form.glossary_agent_chunk_size = getNum('glossary_agent_chunk_size', defaults.chunk_size ?? 1000);
                 form.glossary_agent_concurrent = getNum('glossary_agent_concurrent', defaults.concurrent ?? 5);
@@ -1760,14 +1760,19 @@
             };
 
             const updatePlatformParams = (plat, prefix, target, isGlossary = false) => {
+                // Defaults for DeepSeek on first load
+                const apiKeyDefaults: Record<string,string> = {};
+                const modelDefaults = {
+                    'https://api.deepseek.com/v1': 'deepseek-chat',
+                };
                 const get = (k) => localStorage.getItem(k) || '';
                 if (isGlossary) {
-                    target.glossary_agent_key = get(`${prefix}_${plat}_apikey`);
-                    target.glossary_agent_model_id = get(`${prefix}_${plat}_model_id`);
+                    target.glossary_agent_key = get(`${prefix}_${plat}_apikey`) || (apiKeyDefaults[plat] || '');
+                    target.glossary_agent_model_id = get(`${prefix}_${plat}_model_id`) || (modelDefaults[plat] || '');
                     target.glossary_agent_baseurl = plat === 'custom' ? get(`${prefix}_custom_base_url`) : plat;
                 } else {
-                    target.api_key = get(`${prefix}_${plat}_apikey`);
-                    target.model_id = get(`${prefix}_${plat}_model_id`);
+                    target.api_key = get(`${prefix}_${plat}_apikey`) || (apiKeyDefaults[plat] || '');
+                    target.model_id = get(`${prefix}_${plat}_model_id`) || (modelDefaults[plat] || '');
                     target.base_url = plat === 'custom' ? get(`${prefix}_custom_base_url`) : plat;
                 }
             };
