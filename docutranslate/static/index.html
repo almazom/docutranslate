@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-bs-theme="auto">
+<html lang="en" data-bs-theme="auto">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1463,7 +1463,7 @@
         components: {SliderControl, PlatformSelector},
         setup() {
             const version = ref("");
-            const currentLang = ref(localStorage.getItem('ui_language') || 'zh');
+            const currentLang = ref(localStorage.getItem('ui_language') || 'en');
             const i18nData = ref({});
             const glossaryData = ref({});
             const tasks = ref([]);
@@ -1523,7 +1523,7 @@
                 provider: 'api.openai.com', // Default provider
                 system_proxy_enable: false,
                 force_json: false,
-                to_lang: 'Simplified Chinese',
+                to_lang: 'Russian',
                 custom_to_lang: '',
                 thinking: 'disable',
                 custom_prompt: '',
@@ -2444,7 +2444,7 @@
             const setLang = (l) => {
                 currentLang.value = l;
                 localStorage.setItem('ui_language', l);
-                document.documentElement.lang = l === 'zh' ? 'zh-CN' : 'en';
+                document.documentElement.lang = l === 'zh' ? 'zh-CN' : (l === 'vi' ? 'vi' : 'en');
             };
             const setTheme = (t) => {
                 localStorage.setItem('theme', t);
