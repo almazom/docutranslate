@@ -566,8 +566,10 @@ Deploy DocuTranslate as a public HTTPS service using Docker Compose and Nginx.
 
 ### Prerequisites
 
-- VPS or server with **Docker** and **Docker Compose v2+**
-- (Optional) A domain name pointing to the server for Let's Encrypt SSL
+- Linux VPS or server with **Docker Engine** and **Docker Compose v2+**
+- A public IP address
+- A domain name pointing to the server if you want a trusted Let's Encrypt certificate
+- AI provider credentials for the default model settings in [`.env.example`](./.env.example)
 
 ### Quick Deploy
 
@@ -577,13 +579,19 @@ cd docutranslate
 
 # 1. Copy and edit the environment file
 cp .env.example .env
-# Edit .env: set DOCUTRANSLATE_DEFAULT_BASE_URL, DOCUTRANSLATE_DEFAULT_API_KEY,
-# DOCUTRANSLATE_DEFAULT_MODEL_ID, and adjust ports if needed.
+# Edit .env: set DOCUTRANSLATE_DEFAULT_BASE_URL,
+# DOCUTRANSLATE_DEFAULT_API_KEY, DOCUTRANSLATE_DEFAULT_MODEL_ID,
+# and adjust DOCUTRANSLATE_HTTP_PORT / DOCUTRANSLATE_HTTPS_PORT if needed.
 
-# 2. Start the stack (app + nginx)
+# 2. Create HTTP basic auth credentials for the public UI/API.
+# Replace admin/change-me with your own credentials.
+mkdir -p nginx/auth
+docker run --rm --entrypoint htpasswd httpd:2 -Bbn admin 'change-me' > nginx/auth/.htpasswd
+
+# 3. Start the stack (app + nginx)
 docker compose up -d --build
 
-# 3. (Optional) Set up SSL:
+# 4. Set up TLS:
 #    Self-signed (for testing / IP-only access):
 bash scripts/setup_ssl.sh --self-signed --domain YOUR_SERVER_IP
 
@@ -591,25 +599,34 @@ bash scripts/setup_ssl.sh --self-signed --domain YOUR_SERVER_IP
 bash scripts/setup_ssl.sh --domain your.domain.com --email admin@your.domain.com
 ```
 
+After the stack is up, include `:HTTPS_PORT` in the URL only when `DOCUTRANSLATE_HTTPS_PORT` is not `443`.
+
 ### Access the Service
 
 | Endpoint | URL |
 |----------|-----|
-| Web UI | `https://YOUR_HOST:HTTPS_PORT/` |
-| API Docs (Swagger) | `https://YOUR_HOST:HTTPS_PORT/docs` |
-| Health Check | `https://YOUR_HOST:HTTPS_PORT/health` |
+| Web UI | `https://YOUR_HOST[:HTTPS_PORT]/` |
+| API Docs (Swagger) | `https://YOUR_HOST[:HTTPS_PORT]/docs` |
+| Health Check | `https://YOUR_HOST[:HTTPS_PORT]/health` |
 
-Default ports: HTTP `18080`, HTTPS `18443`. Change via `DOCUTRANSLATE_HTTP_PORT` and `DOCUTRANSLATE_HTTPS_PORT` in `.env`.
+All routes except `/health` are protected by HTTP basic auth from `nginx/auth/.htpasswd`.
+
+Default ports: HTTP `80`, HTTPS `443`. Change them with `DOCUTRANSLATE_HTTP_PORT` and `DOCUTRANSLATE_HTTPS_PORT` in [`.env.example`](./.env.example).
 
 ### Configuration Reference
 
-Key environment variables for production:
+Use [`.env.example`](./.env.example) as the full config reference. The most important production settings are:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DOCUTRANSLATE_HTTP_PORT` | `18080` | Nginx HTTP listener port |
-| `DOCUTRANSLATE_HTTPS_PORT` | `18443` | Nginx HTTPS listener port |
+| `DOCUTRANSLATE_HOST` | `127.0.0.1` | App bind host inside the container |
+| `DOCUTRANSLATE_PORT` | `8010` | App port inside the container |
+| `DOCUTRANSLATE_HTTP_PORT` | `80` | Host HTTP port published by nginx |
+| `DOCUTRANSLATE_HTTPS_PORT` | `443` | Host HTTPS port published by nginx |
 | `DOCUTRANSLATE_SSL_CN` | `localhost` | SSL certificate Common Name |
+| `DOCUTRANSLATE_DEFAULT_BASE_URL` | empty | Base URL for the default LLM provider |
+| `DOCUTRANSLATE_DEFAULT_API_KEY` | empty | API key for the default LLM provider |
+| `DOCUTRANSLATE_DEFAULT_MODEL_ID` | empty | Model used by the default translation profile |
 | `DOCUTRANSLATE_GUNICORN_WORKERS` | `1` | Number of Gunicorn worker processes |
 | `DOCUTRANSLATE_GUNICORN_TIMEOUT` | `300` | Gunicorn request timeout (seconds) |
 
@@ -618,16 +635,19 @@ All `DOCUTRANSLATE_DEFAULT_*` variables from `.env.example` apply to the contain
 ### Run BDD Verification
 
 ```bash
-# Install Node.js dependencies
-npm install
-npx playwright install chromium
-
-# Run against local stack (default)
+# Run against the local Docker stack
+E2E_BASIC_AUTH_USER=admin \
+E2E_BASIC_AUTH_PASS=change-me \
 bash scripts/e2e_verify.sh
 
 # Run against a deployed instance
-E2E_BASE_URL=https://your.domain.com bash scripts/e2e_verify.sh
+E2E_BASE_URL=https://your.domain.com \
+E2E_BASIC_AUTH_USER=admin \
+E2E_BASIC_AUTH_PASS=change-me \
+bash scripts/e2e_verify.sh
 ```
+
+`scripts/e2e_verify.sh` installs missing Node dependencies, installs Playwright Chromium, builds sample fixtures, waits for `/health`, and runs the BDD suite against the configured target.
 
 ## FAQ
 
