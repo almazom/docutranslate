@@ -227,6 +227,71 @@ Rejected for this plan:
 - `certbot` HTTP-01 on `80`, because `80` is already occupied
 - a second public hostname for RU traffic, because the user-facing domain must remain `docutranslate.ru`
 
+## Phase 2 Reverse Proxy Configuration
+
+Chosen proxy runtime:
+
+- use `nginx:alpine` inside Docker on `212.28.182.235`
+- bind only `443:443`
+- mount one explicit config file plus one certificate directory from the `almaz` home directory
+
+Suggested container launch:
+
+```bash
+docker run -d \
+  --name docutranslate-ru-proxy \
+  --restart unless-stopped \
+  -p 443:443 \
+  -v /home/almaz/docutranslate-ru-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro \
+  -v /home/almaz/docutranslate-ru-proxy/certs:/etc/nginx/certs:ro \
+  nginx:1.29-alpine
+```
+
+Suggested `/home/almaz/docutranslate-ru-proxy/default.conf`:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name docutranslate.ru;
+
+    ssl_certificate /etc/nginx/certs/docutranslate.ru.crt;
+    ssl_certificate_key /etc/nginx/certs/docutranslate.ru.key;
+
+    location / {
+        proxy_pass https://107.174.231.22:2053;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_ssl_verify off;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+    }
+}
+```
+
+Required behavior for this proxy:
+
+- preserve the original `Host` header as `docutranslate.ru`
+- forward `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host`
+- keep the upstream on `https://107.174.231.22:2053`
+- leave origin basic auth behavior unchanged instead of adding a second auth wall on the RU proxy
+- keep `/health` behavior unchanged because the origin already exposes it without auth
+
+Why `proxy_ssl_verify off` is part of the plan:
+
+- the current origin path on `107.174.231.22:2053` already uses a self-signed certificate
+- this mirrors the existing `curl -k` / `Cloudflare Full` operating model instead of introducing a new certificate dependency during proxy bring-up
+
+Smoke commands for the RU proxy itself:
+
+```bash
+curl -k --resolve docutranslate.ru:443:212.28.182.235 https://docutranslate.ru/health
+curl -k --resolve docutranslate.ru:443:212.28.182.235 -u admin:***** https://docutranslate.ru/
+```
+
 ## Practical Risk
 
 Without root:
