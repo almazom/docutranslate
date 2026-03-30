@@ -292,6 +292,54 @@ curl -k --resolve docutranslate.ru:443:212.28.182.235 https://docutranslate.ru/h
 curl -k --resolve docutranslate.ru:443:212.28.182.235 -u admin:***** https://docutranslate.ru/
 ```
 
+## Phase 3 TLS Strategy For `docutranslate.ru` On The RU Path
+
+Public TLS boundary:
+
+- browsers still connect to `docutranslate.ru` through proxied `Cloudflare`
+- the browser-facing certificate stays a `Cloudflare` edge concern
+- `212.28.182.235` acts as the RU origin behind `Cloudflare`, not as a new user-facing hostname
+
+Origin TLS boundary on `212.28.182.235`:
+
+- the RU proxy container on `212` must terminate TLS for `server_name docutranslate.ru`
+- the mounted certificate pair should live at:
+  - `/home/almaz/docutranslate-ru-proxy/certs/docutranslate.ru.crt`
+  - `/home/almaz/docutranslate-ru-proxy/certs/docutranslate.ru.key`
+
+Bootstrap certificate strategy for the current environment:
+
+- use a self-signed certificate for `docutranslate.ru` on the RU proxy first
+- this is acceptable because the current `Cloudflare` zone is already in `Full`, not `Strict`
+- this avoids dependence on `certbot` HTTP-01, which is blocked by the occupied `80` port and lack of root
+- direct origin checks should continue to use `curl -k`
+
+Concrete bootstrap command:
+
+```bash
+mkdir -p /home/almaz/docutranslate-ru-proxy/certs
+openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+  -keyout /home/almaz/docutranslate-ru-proxy/certs/docutranslate.ru.key \
+  -out /home/almaz/docutranslate-ru-proxy/certs/docutranslate.ru.crt \
+  -subj "/CN=docutranslate.ru" \
+  -addext "subjectAltName=DNS:docutranslate.ru"
+```
+
+Upgrade path if the zone is later moved to `Strict` or if direct browser access to the RU origin becomes necessary:
+
+- replace the self-signed pair with a `Cloudflare Origin CA` certificate for `docutranslate.ru`, or
+- replace it with a DNS-01-issued public certificate if DNS/API access is available
+
+Cutover rule for this plan:
+
+- do not point the RU pool at `212.28.182.235` until the container answers TLS for `docutranslate.ru` on `443`
+- validate that with:
+
+```bash
+curl -k --resolve docutranslate.ru:443:212.28.182.235 https://docutranslate.ru/health
+openssl s_client -connect 212.28.182.235:443 -servername docutranslate.ru </dev/null
+```
+
 ## Practical Risk
 
 Without root:
