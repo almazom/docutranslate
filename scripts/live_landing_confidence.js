@@ -36,21 +36,18 @@ const loadLocalEnv = () => {
   }
 };
 
-const isVisible = (selector) => {
-  const element = document.querySelector(selector);
-  if (!element) {
-    return false;
+const readProxy = () => {
+  const server = process.env.E2E_PROXY_SERVER || "";
+  if (!server) {
+    return undefined;
   }
 
-  const style = window.getComputedStyle(element);
-  const rect = element.getBoundingClientRect();
-  return (
-    style.display !== "none" &&
-    style.visibility !== "hidden" &&
-    style.opacity !== "0" &&
-    rect.width > 0 &&
-    rect.height > 0
-  );
+  return {
+    server,
+    bypass: process.env.E2E_PROXY_BYPASS || undefined,
+    username: process.env.E2E_PROXY_USERNAME || undefined,
+    password: process.env.E2E_PROXY_PASSWORD || undefined,
+  };
 };
 
 loadLocalEnv();
@@ -58,6 +55,12 @@ loadLocalEnv();
 const baseURL = process.env.E2E_BASE_URL || "https://docutranslate.ru";
 const authUser = process.env.E2E_BASIC_AUTH_USER || "";
 const authPass = process.env.E2E_BASIC_AUTH_PASS || "";
+const proxy = readProxy();
+const routeLabel = process.env.E2E_ROUTE_LABEL || (proxy ? "proxy" : "direct");
+const originForAuth = new URL(baseURL).origin;
+const basicAuthHeader = authUser && authPass
+  ? `Basic ${Buffer.from(`${authUser}:${authPass}`).toString("base64")}`
+  : "";
 const rounds = Math.max(1, Number(process.env.E2E_LANDING_CONFIDENCE_ROUNDS || "10"));
 const threshold = Number(process.env.E2E_LANDING_CONFIDENCE_THRESHOLD || "0.95");
 const requiredPasses = Math.ceil(rounds * threshold);
@@ -81,7 +84,10 @@ const createContextOptions = () => ({
 });
 
 const runRound = async (roundIndex) => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    proxy,
+  });
   const context = await browser.newContext(createContextOptions());
   const page = await context.newPage();
   const pageErrors = [];
@@ -113,11 +119,27 @@ const runRound = async (roundIndex) => {
       });
     }
   });
+  if (basicAuthHeader) {
+    await page.route("**/*", async (route) => {
+      if (new URL(route.request().url()).origin !== originForAuth) {
+        await route.continue();
+        return;
+      }
+
+      await route.continue({
+        headers: {
+          ...route.request().headers(),
+          authorization: basicAuthHeader,
+        },
+      });
+    });
+  }
 
   let state = null;
   let status = null;
   let passed = false;
   let failureReason = "";
+  let responseHeaders = {};
   const roundLabel = String(roundIndex).padStart(2, "0");
   const screenshotPath = path.join(screenshotDir, `landing-round-${roundLabel}.png`);
 
@@ -125,16 +147,36 @@ const runRound = async (roundIndex) => {
     const response = await page.goto(`${baseURL}/`, { waitUntil: "networkidle", timeout: 60_000 });
     await page.waitForTimeout(1_000);
     status = response ? response.status() : null;
-    state = await page.evaluate(() => ({
-      title: document.title,
-      appVisible: isVisible("#app"),
-      projectTitleVisible: isVisible("[data-testid='project-title']"),
-      workflowSelectVisible: isVisible("[data-testid='workflow-select']"),
-      newTaskButtonVisible: isVisible("[data-testid='new-task-button']"),
-      bodyTextLength: (document.body.innerText || "").trim().length,
-      bodyHtmlLength: document.body.innerHTML.length,
-      apiKeyDefaultsSnippet: document.documentElement.outerHTML.includes("const apiKeyDefaults = {};"),
-    }));
+    responseHeaders = response ? response.headers() : {};
+    state = await page.evaluate(() => {
+      const isVisible = (selector) => {
+        const element = document.querySelector(selector);
+        if (!element) {
+          return false;
+        }
+
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          style.opacity !== "0" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+
+      return {
+        title: document.title,
+        appVisible: isVisible("#app"),
+        projectTitleVisible: isVisible("[data-testid='project-title']"),
+        workflowSelectVisible: isVisible("[data-testid='workflow-select']"),
+        newTaskButtonVisible: isVisible("[data-testid='new-task-button']"),
+        bodyTextLength: (document.body.innerText || "").trim().length,
+        bodyHtmlLength: document.body.innerHTML.length,
+        apiKeyDefaultsSnippet: document.documentElement.outerHTML.includes("const apiKeyDefaults = {};"),
+      };
+    });
 
     passed = Boolean(
       status === 200 &&
@@ -171,10 +213,14 @@ const runRound = async (roundIndex) => {
   const roundReport = {
     round: roundIndex,
     baseURL,
+    routeLabel,
+    proxyEnabled: Boolean(proxy),
+    proxyServer: proxy ? proxy.server : null,
     status,
     passed,
     failureReason,
     state,
+    responseHeaders,
     pageErrors,
     consoleErrors,
     failedRequests,
@@ -211,6 +257,9 @@ const main = async () => {
   const success = totalExecuted === rounds && passCount >= requiredPasses;
   const summary = {
     baseURL,
+    routeLabel,
+    proxyEnabled: Boolean(proxy),
+    proxyServer: proxy ? proxy.server : null,
     roundsRequested: rounds,
     roundsExecuted: totalExecuted,
     requiredPasses,

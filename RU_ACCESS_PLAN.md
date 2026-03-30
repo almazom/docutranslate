@@ -391,6 +391,52 @@ Success condition for this card:
 - non-RU traffic keeps the current path
 - the rollback boundary remains one steering change, not an application redeploy
 
+## Phase 4 Route Validation Matrix
+
+Validation date: `2026-03-30`
+
+Observed paths:
+
+- local direct path:
+  - `curl -k https://docutranslate.ru/health` returned `{"status":"ok","version":"1.7.1.post1"}`
+  - `curl -k -u admin:***** https://docutranslate.ru/` returned `HTTP/2 200`
+- RU-like authenticated proxy path:
+  - `curl -k -u admin:***** https://docutranslate.ru/` returned `HTTP/2 200` when routed through the configured authenticated proxy
+- secondary VPS path from `212.28.182.235`:
+  - `curl -k https://docutranslate.ru/health` returned `{"status":"ok","version":"1.7.1.post1"}`
+  - `curl -k -u admin:***** https://docutranslate.ru/` returned `HTTP/2 200`
+- real end-user Russian consumer access was not available in this session, so that remains an external confirmation step after cutover
+
+Repeatable route-aware browser checks:
+
+```bash
+E2E_ROUTE_LABEL=default \
+E2E_BASE_URL=https://docutranslate.ru \
+node scripts/live_landing_confidence.js
+
+E2E_ROUTE_LABEL=ru-like \
+E2E_BASE_URL=https://docutranslate.ru \
+E2E_PROXY_SERVER=http://proxy.example:3128 \
+E2E_PROXY_USERNAME=... \
+E2E_PROXY_PASSWORD=... \
+node scripts/live_landing_confidence.js
+```
+
+Playwright route controls now expected by this repo:
+
+- `E2E_ROUTE_LABEL` labels the run as `default`, `ru-like`, or another explicit path name
+- `E2E_PROXY_SERVER` enables browser-level proxy routing for Playwright and the landing confidence script
+- `E2E_PROXY_USERNAME` and `E2E_PROXY_PASSWORD` supply authenticated proxy credentials when required
+- `E2E_PROXY_BYPASS` optionally excludes domains from proxying
+
+What these checks prove today:
+
+- the main domain is reachable with health and landing responses from the default path
+- the same domain is reachable through a proxy-mediated RU-like path
+- the extra VPS path can reach the same public hostname without changing the visible URL
+- the route-aware browser confidence runner passed `1/1` round for both `default` and `ru-like` labels on `2026-03-30`
+- the automation can now record which route was used for each browser confidence run
+
 ## Practical Risk
 
 Without root:
