@@ -179,6 +179,54 @@ Validate:
 - `443` is free on `212`
 - no good root or sudo path yet
 
+## Phase 2 Capability Snapshot For `212.28.182.235`
+
+Check date: `2026-03-30`
+
+Observed directly over SSH:
+
+- `ssh -i /home/pets/.ssh/docutranslate_ru_proxy almaz@212.28.182.235` works
+- active login user is `almaz`
+- host reports as `vmi2303558.contaboserver.net`
+- `docker` is installed and usable by `almaz`
+- `nginx` binary exists on the host
+- `certbot` binary exists on the host
+- `ss -ltnp` shows `0.0.0.0:80` and `[::]:80` already occupied
+- no listener is present on `443` at the time of the check
+- `sudo -n true` fails, so there is no passwordless sudo path for this work
+
+Operational consequence:
+
+- do not base the RU path on editing system `nginx`
+- do not base the RU path on `certbot` HTTP-01 on `80`
+- treat Docker as the only practical operator surface available to `almaz`
+
+## Chosen Launch Shape On `212.28.182.235`
+
+Use a dedicated Docker-managed reverse proxy as the RU entry service.
+
+Why this shape wins:
+
+- it works with the confirmed `almaz` + Docker permissions
+- it avoids touching the already busy host port `80`
+- it does not depend on root access to install or rewire system services
+- it keeps the rollback boundary narrow because one container can be stopped without changing the origin app
+
+Concrete shape:
+
+- keep the existing host services on `80` untouched
+- publish only `443:443` from the RU proxy container
+- store proxy config and certificate material in the `almaz` home directory
+- set the container restart policy to `unless-stopped`
+- point the upstream at `https://107.174.231.22:2053`
+- preserve host and forwarding headers at the proxy layer
+
+Rejected for this plan:
+
+- system `nginx` reconfiguration, because there is no confirmed root path
+- `certbot` HTTP-01 on `80`, because `80` is already occupied
+- a second public hostname for RU traffic, because the user-facing domain must remain `docutranslate.ru`
+
 ## Practical Risk
 
 Without root:
