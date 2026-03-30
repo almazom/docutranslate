@@ -1,7 +1,44 @@
+import * as fs from "node:fs";
 import { chromium, type Page } from "playwright";
 import * as path from "path";
 
-const BASE_URL = process.env.E2E_BASE_URL || "https://107.174.231.22:18443";
+const loadLocalEnv = () => {
+  const envPath = path.resolve(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) {
+    return;
+  }
+
+  for (const rawLine of fs.readFileSync(envPath, "utf8").split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = line.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = line.slice(0, separatorIndex).trim();
+    let value = line.slice(separatorIndex + 1);
+    if (
+      (value.startsWith("\"") && value.endsWith("\"")) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+};
+
+loadLocalEnv();
+
+const BASE_URL = process.env.E2E_BASE_URL || "https://docutranslate.ru";
+const BASIC_AUTH_USER = process.env.E2E_BASIC_AUTH_USER || "";
+const BASIC_AUTH_PASS = process.env.E2E_BASIC_AUTH_PASS || "";
 const SHOT_DIR = path.resolve(__dirname, "../tests/e2e/screenshots/user-walkthrough");
 
 async function shot(page: Page, name: string) {
@@ -16,6 +53,12 @@ async function main() {
     ignoreHTTPSErrors: true,
     viewport: { width: 1440, height: 900 },
     locale: "en-US",
+    httpCredentials: BASIC_AUTH_USER && BASIC_AUTH_PASS
+      ? {
+          username: BASIC_AUTH_USER,
+          password: BASIC_AUTH_PASS,
+        }
+      : undefined,
   });
   const page = await ctx.newPage();
 
