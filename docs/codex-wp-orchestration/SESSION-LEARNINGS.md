@@ -33,20 +33,42 @@
 
 ### Solution
 ```bash
-# ❌ WRONG - kimi_wp hangs
-codex-review --backend kimi_wp --timeout 180
+# Step 1: Try codex native first
+codex-review --backend codex --timeout 300
 
-# ✅ CORRECT - glm_wp works
+# Step 2: If codex fails, use glm_wp fallback
 codex-review --backend glm_wp --timeout 600
 
-# ✅ BEST - codex native (if healthy)
-codex-review --backend codex --timeout 300
+# ❌ NEVER USE - kimi_wp hangs
+codex-review --backend kimi_wp  # BROKEN!
 ```
 
 ### Backend priority
-1. `codex` — native, fastest when healthy
-2. `glm_wp` — fallback, works reliably
+1. `codex` — native, try FIRST (if healthy)
+2. `glm_wp` — fallback, use ONLY if codex fails
 3. `kimi_wp` — **BROKEN**, do not use
+
+### If codex fails - investigate proxy
+
+```bash
+# Check proxy health
+cdx status --json
+
+# Check auth keys
+cdx doctor --probe
+
+# See usage dashboard
+cdx all
+
+# Rotate to next key
+cdx rotate
+
+# Reset blacklist if keys recovered
+cdx reset --state blacklist
+
+# Preview rotation
+cdx rotate --dry-run
+```
 
 ## JSONL Observability Rule
 
