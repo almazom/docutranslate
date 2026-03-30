@@ -340,6 +340,57 @@ curl -k --resolve docutranslate.ru:443:212.28.182.235 https://docutranslate.ru/h
 openssl s_client -connect 212.28.182.235:443 -servername docutranslate.ru </dev/null
 ```
 
+## Phase 3 Same-Domain Geo-Routing Cutover
+
+Concrete `Cloudflare` objects to create:
+
+- load balancer hostname: `docutranslate.ru`
+- default pool: `docutranslate-default`
+- RU pool: `docutranslate-ru`
+- health monitor path: `/health`
+
+Pool targets:
+
+- `docutranslate-default` -> current origin path on `107.174.231.22:2053`
+- `docutranslate-ru` -> RU proxy on `212.28.182.235:443`
+
+Steering rule:
+
+- steering mode: geo
+- country match for RU traffic: `RU`
+- RU traffic preference: `docutranslate-ru`
+- all other traffic preference: `docutranslate-default`
+
+Host and health assumptions:
+
+- keep the public hostname fixed at `docutranslate.ru`
+- use `/health` as the pool health endpoint because it is intentionally outside basic auth
+- keep the origin request host aligned with `docutranslate.ru`
+- keep the current proxied `Cloudflare` front-door model instead of switching users to any direct RU hostname
+
+Cutover sequence:
+
+1. Confirm the default path is still healthy at `https://107.174.231.22:2053/health`.
+2. Confirm the RU proxy answers `https://docutranslate.ru/health` when forced to `212.28.182.235` with `--resolve`.
+3. Create `docutranslate-default` and `docutranslate-ru` pools.
+4. Attach both pools to the proxied load balancer for `docutranslate.ru`.
+5. Enable geo steering so `RU -> docutranslate-ru` and `non-RU -> docutranslate-default`.
+6. Re-run the curl and browser validation from both paths before calling the cutover complete.
+
+Hard fallback if the provider path is incomplete:
+
+- if `Cloudflare` Load Balancing cannot be enabled cleanly, do not publish a partial cutover
+- keep all user traffic on the current default path
+- keep the RU proxy available only for direct validation with `--resolve`
+- reopen GeoDNS only as a separate fallback decision, not as a silent substitution for the chosen proxied design
+
+Success condition for this card:
+
+- every user still opens only `docutranslate.ru`
+- RU traffic is eligible for `212.28.182.235`
+- non-RU traffic keeps the current path
+- the rollback boundary remains one steering change, not an application redeploy
+
 ## Practical Risk
 
 Without root:
