@@ -3,10 +3,23 @@ import { expect, type Page } from "@playwright/test";
 import { Given, Then, When } from "./fixtures";
 
 const firstTaskCard = (page: Page) => page.locator('[data-testid^="task-card-"]').first();
+const assertLandingReady = async (page: Page) => {
+  await expect(page.locator("#app")).toBeVisible();
+  await expect(page.getByTestId("project-title")).toBeVisible();
+  await expect(page.getByTestId("workflow-select")).toBeVisible();
+  await expect(page.getByTestId("new-task-button")).toBeVisible();
+};
 
 Given("the DocuTranslate landing page is open", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => {
+    pageErrors.push(error.message);
+  });
+
   await page.goto("/");
   await page.waitForLoadState("networkidle");
+  await assertLandingReady(page);
+  expect(pageErrors, `Unexpected browser errors: ${pageErrors.join(" | ")}`).toEqual([]);
 });
 
 Then("the app title is shown", async ({ page }) => {

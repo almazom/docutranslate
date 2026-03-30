@@ -1,11 +1,11 @@
 # DocuTranslate — operations Makefile
 # Usage: make <target>
 SHELL := /bin/bash
-.PHONY: start stop restart rebuild status heal logs health e2e watchdog-install watchdog-remove help
+.PHONY: start stop restart rebuild status heal logs health e2e landing-confidence watchdog-install watchdog-remove help
 
 COMPOSE   = docker compose
 HEALTH_URL = https://127.0.0.1:18443/health
-E2E_URL   = https://107.174.231.22:18443
+E2E_URL   = https://docutranslate.ru
 WATCHDOG_SCRIPT := $(CURDIR)/scripts/watchdog.sh
 HEAL_SCRIPT     := $(CURDIR)/scripts/auto_heal.sh
 LOG_DIR         := $(CURDIR)/logs
@@ -53,6 +53,9 @@ logs:
 e2e:
 	@E2E_BASE_URL=$(E2E_URL) E2E_REBUILD_LOCAL=0 bash scripts/e2e_verify.sh
 
+landing-confidence:
+	@E2E_BASE_URL=$(E2E_URL) node scripts/live_landing_confidence.js
+
 # ── heal ───────────────────────────────────────────────
 
 heal: ## Run AI auto-heal once now
@@ -86,6 +89,7 @@ help:
 	@echo "  make health            JSON health endpoint"
 	@echo "  make logs              Follow container logs"
 	@echo "  make e2e               Run BDD test suite"
+	@echo "  make landing-confidence  Repeat landing-page smoke until confidence target"
 	@echo "  make heal              AI auto-heal (run once)"
 	@echo "  make watchdog-install  Install 15-min cron watchdog"
 	@echo "  make watchdog-remove   Remove cron watchdog"
