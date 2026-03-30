@@ -78,6 +78,7 @@ export default defineConfig({
   metadata: {
     baseURL,
     routeLabel,
+    basicAuthConfigured: Boolean(httpCredentials),
     proxyEnabled: Boolean(proxy),
     proxyServer: proxy?.server || null,
   },

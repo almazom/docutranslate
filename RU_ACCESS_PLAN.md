@@ -437,6 +437,28 @@ What these checks prove today:
 - the route-aware browser confidence runner passed `1/1` round for both `default` and `ru-like` labels on `2026-03-30`
 - the automation can now record which route was used for each browser confidence run
 
+## Phase 4 Main-Domain Landing Smoke And Confidence
+
+Executed on: `2026-03-30`
+
+Smoke result on `https://docutranslate.ru`:
+
+- `npx playwright test tests/e2e/features/landing.feature --project=chromium` passed `1/1`
+- the smoke step confirmed:
+  - basic auth credentials were configured for the run
+  - no `pageerror` or console errors were emitted during landing initialization
+  - `#app`, `project-title`, `workflow-select`, and `new-task-button` were visible
+  - the post-click task card exposed the dynamic upload input and visible drop area
+
+Confidence result on `https://docutranslate.ru`:
+
+- `node scripts/live_landing_confidence.js` passed `3/3`
+- recorded summary:
+  - `routeLabel=main-domain`
+  - `authConfigured=true`
+  - `confidence=1`
+  - `success=true`
+
 ## Practical Risk
 
 Without root:

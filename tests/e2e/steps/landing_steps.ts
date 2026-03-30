@@ -4,6 +4,7 @@ import { Given, Then, When } from "./fixtures";
 
 const firstTaskCard = (page: Page) => page.locator('[data-testid^="task-card-"]').first();
 type LandingDiagnostics = {
+  authConfigured: boolean;
   cfRay: string | null;
   consoleErrors: string[];
   pageErrors: string[];
@@ -64,6 +65,7 @@ Given("the DocuTranslate landing page is open", async ({ page, scenarioState }) 
   await assertLandingReady(page);
   const landingState = scenarioState as typeof scenarioState & { landingDiagnostics?: LandingDiagnostics };
   landingState.landingDiagnostics = {
+    authConfigured: Boolean(basicAuthHeader),
     cfRay: response?.headers()["cf-ray"] ?? null,
     consoleErrors,
     pageErrors,
@@ -94,5 +96,6 @@ When("I create a new translation task", async ({ page }) => {
 Then("an empty task card is ready for upload", async ({ page }) => {
   const card = firstTaskCard(page);
   await expect(card).toBeVisible();
-  await expect(card.getByTestId("task-file-input")).toHaveCount(1);
+  await expect(card.locator("[data-testid^='task-file-input-']")).toHaveCount(1);
+  await expect(card.locator(".file-drop-area")).toBeVisible();
 });

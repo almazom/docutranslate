@@ -204,6 +204,7 @@ const runRound = async (roundIndex) => {
       ].filter(Boolean).join("; ");
     }
 
+    fs.mkdirSync(screenshotDir, { recursive: true });
     await page.screenshot({ path: screenshotPath, fullPage: true });
   } finally {
     await context.close();
@@ -214,6 +215,7 @@ const runRound = async (roundIndex) => {
     round: roundIndex,
     baseURL,
     routeLabel,
+    authConfigured: Boolean(basicAuthHeader),
     proxyEnabled: Boolean(proxy),
     proxyServer: proxy ? proxy.server : null,
     status,
@@ -229,6 +231,7 @@ const runRound = async (roundIndex) => {
     checkedAt: new Date().toISOString(),
   };
 
+  fs.mkdirSync(reportDir, { recursive: true });
   fs.writeFileSync(
     path.join(reportDir, `landing-round-${roundLabel}.json`),
     JSON.stringify(roundReport, null, 2),
@@ -258,6 +261,7 @@ const main = async () => {
   const summary = {
     baseURL,
     routeLabel,
+    authConfigured: Boolean(basicAuthHeader),
     proxyEnabled: Boolean(proxy),
     proxyServer: proxy ? proxy.server : null,
     roundsRequested: rounds,
@@ -274,11 +278,13 @@ const main = async () => {
   };
 
   if (success && lastSuccessScreenshot) {
+    fs.mkdirSync(screenshotDir, { recursive: true });
     const latestSuccessPath = path.join(screenshotDir, "landing-success-latest.png");
     fs.copyFileSync(lastSuccessScreenshot, latestSuccessPath);
     summary.lastSuccessScreenshot = latestSuccessPath;
   }
 
+  fs.mkdirSync(reportDir, { recursive: true });
   fs.writeFileSync(path.join(reportDir, "summary.json"), JSON.stringify(summary, null, 2));
   console.log(JSON.stringify(summary, null, 2));
   process.exit(success ? 0 : 1);
