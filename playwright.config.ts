@@ -1,11 +1,58 @@
+import fs from "node:fs";
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { defineBddConfig } from "playwright-bdd";
+
+const loadLocalEnv = () => {
+  const envPath = path.resolve(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) {
+    return;
+  }
+
+  for (const rawLine of fs.readFileSync(envPath, "utf8").split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = line.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = line.slice(0, separatorIndex).trim();
+    let value = line.slice(separatorIndex + 1);
+    if (
+      (value.startsWith("\"") && value.endsWith("\"")) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+};
+
+loadLocalEnv();
 
 const testDir = defineBddConfig({
   features: "tests/e2e/features/**/*.feature",
   steps: "tests/e2e/steps/**/*.ts",
   outputDir: "tests/e2e/.features-gen",
 });
+
+const defaultHttpsPort = process.env.DOCUTRANSLATE_HTTPS_PORT || "443";
+const baseURL = process.env.E2E_BASE_URL || `https://127.0.0.1:${defaultHttpsPort}`;
+const basicAuthUser = process.env.E2E_BASIC_AUTH_USER || "";
+const basicAuthPass = process.env.E2E_BASIC_AUTH_PASS || "";
+const httpCredentials = basicAuthUser && basicAuthPass
+  ? {
+      username: basicAuthUser,
+      password: basicAuthPass,
+    }
+  : undefined;
 
 export default defineConfig({
   testDir,
@@ -20,9 +67,10 @@ export default defineConfig({
     ["html", { open: "never", outputFolder: "playwright-report" }],
   ],
   use: {
-    baseURL: process.env.E2E_BASE_URL || "https://127.0.0.1:18443",
+    baseURL,
     headless: true,
     ignoreHTTPSErrors: true,
+    httpCredentials,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     video: "retain-on-failure",
