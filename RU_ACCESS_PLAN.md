@@ -459,6 +459,49 @@ Confidence result on `https://docutranslate.ru`:
   - `confidence=1`
   - `success=true`
 
+## Phase 4 Rollback Playbook
+
+Rollback objective:
+
+- remove only the geo-routing decision
+- keep `docutranslate.ru` alive
+- keep the current origin path on `107.174.231.22:2053`
+- avoid any application redeploy during rollback
+
+Rollback sequence:
+
+1. In `Cloudflare`, disable the RU steering rule or change traffic preference so every request lands on `docutranslate-default`.
+2. Do not delete the `docutranslate-ru` pool or the `212.28.182.235` proxy during the first rollback step.
+3. Re-check `https://docutranslate.ru/health` and the hosted landing page on the default path.
+4. Run the same browser validation with an explicit rollback label:
+
+```bash
+E2E_ROUTE_LABEL=rollback-default \
+E2E_BASE_URL=https://docutranslate.ru \
+E2E_BASIC_AUTH_USER=admin \
+E2E_BASIC_AUTH_PASS=***** \
+node scripts/live_landing_confidence.js
+```
+
+5. Re-run the landing smoke:
+
+```bash
+E2E_BASE_URL=https://docutranslate.ru \
+E2E_BASIC_AUTH_USER=admin \
+E2E_BASIC_AUTH_PASS=***** \
+npx playwright test tests/e2e/features/landing.feature --project=chromium
+```
+
+6. Only after the default path is confirmed healthy should the RU proxy or RU pool be disabled further.
+
+Rollback validation result for this package run:
+
+- the rollback path is expected to reuse the same current default route that already passed direct landing validation
+- the confidence runner now stores route-labeled artifacts such as `rollback-default-<timestamp>` so rollback evidence stays distinct from `main-domain`, `default`, and `ru-like` runs
+- `npx playwright test tests/e2e/features/landing.feature --project=chromium` passed `1/1` with `E2E_ROUTE_LABEL=rollback-default`
+- `node scripts/live_landing_confidence.js` passed `1/1` with `routeLabel=rollback-default` and `confidence=1`
+- because the steering rule is not enabled in this repo session, rollback verification here is procedural and uses the already healthy default path as the target state
+
 ## Practical Risk
 
 Without root:

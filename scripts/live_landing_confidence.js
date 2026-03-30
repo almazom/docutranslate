@@ -57,6 +57,7 @@ const authUser = process.env.E2E_BASIC_AUTH_USER || "";
 const authPass = process.env.E2E_BASIC_AUTH_PASS || "";
 const proxy = readProxy();
 const routeLabel = process.env.E2E_ROUTE_LABEL || (proxy ? "proxy" : "direct");
+const safeRouteLabel = routeLabel.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "route";
 const originForAuth = new URL(baseURL).origin;
 const basicAuthHeader = authUser && authPass
   ? `Basic ${Buffer.from(`${authUser}:${authPass}`).toString("base64")}`
@@ -65,8 +66,9 @@ const rounds = Math.max(1, Number(process.env.E2E_LANDING_CONFIDENCE_ROUNDS || "
 const threshold = Number(process.env.E2E_LANDING_CONFIDENCE_THRESHOLD || "0.95");
 const requiredPasses = Math.ceil(rounds * threshold);
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-const screenshotDir = path.resolve(process.cwd(), "tests/e2e/screenshots/landing-confidence", timestamp);
-const reportDir = path.resolve(process.cwd(), "test-results/landing-confidence", timestamp);
+const runLabel = `${safeRouteLabel}-${timestamp}`;
+const screenshotDir = path.resolve(process.cwd(), "tests/e2e/screenshots/landing-confidence", runLabel);
+const reportDir = path.resolve(process.cwd(), "test-results/landing-confidence", runLabel);
 
 fs.mkdirSync(screenshotDir, { recursive: true });
 fs.mkdirSync(reportDir, { recursive: true });
@@ -215,6 +217,7 @@ const runRound = async (roundIndex) => {
     round: roundIndex,
     baseURL,
     routeLabel,
+    runLabel,
     authConfigured: Boolean(basicAuthHeader),
     proxyEnabled: Boolean(proxy),
     proxyServer: proxy ? proxy.server : null,
@@ -261,6 +264,7 @@ const main = async () => {
   const summary = {
     baseURL,
     routeLabel,
+    runLabel,
     authConfigured: Boolean(basicAuthHeader),
     proxyEnabled: Boolean(proxy),
     proxyServer: proxy ? proxy.server : null,
