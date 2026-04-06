@@ -2,6 +2,7 @@
 
 ## Сервер (107.174.231.22)
 - [x] Порт 18443 → **2053** (Cloudflare-совместимый)
+- [x] Legacy publish: `18443 -> 443` оставлен как compatibility alias для старых health checks
 - [x] .env: DOCUTRANSLATE_HTTPS_PORT=2053
 - [x] Docker контейнеры пересозданы
 

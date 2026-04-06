@@ -35,6 +35,9 @@ services:
     ports:
       - "${DOCUTRANSLATE_HTTP_PORT:-80}:80"
       - "${DOCUTRANSLATE_HTTPS_PORT:-443}:443"
+    networks:
+      - default
+      - webssh2-browser-shell
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl
       - ./nginx/auth:/etc/nginx/auth
@@ -52,3 +55,7 @@ services:
 volumes:
   app-output:
   app-data:
+
+networks:
+  webssh2-browser-shell:
+    external: true
